@@ -1,0 +1,26 @@
+{
+  "name": "cs-backend-foundation",
+  "version": "1.0.0",
+  "description": "Claude Code skill + code templates: production backend foundation (Express + Sequelize + BullMQ) — bounded-context layout, ApiError, response envelope, validation, JWT auth chains, granular permissions, TOTP, HMAC API signing, rate limiters, idempotent boot migrations, double-entry ledger, uniform workers, graceful shutdown.",
+  "type": "module",
+  "bin": {
+    "backend-foundation": "bin/install.js"
+  },
+  "files": [
+    "bin/",
+    "skills/",
+    "README.md"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "skill",
+    "backend",
+    "express",
+    "sequelize",
+    "bullmq",
+    "boilerplate",
+    "foundation"
+  ],
+  "license": "MIT"
+}
