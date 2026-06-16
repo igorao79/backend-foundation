@@ -27,7 +27,7 @@ These keep every backend built on this foundation uniform and junior-readable:
 
 ## Scaffolding a new backend — order of operations
 
-1. **Composition root first**. Copy `templates/env.js` (env loading + fail-fast validation), `templates/api.error.js`, `templates/logger.helper.js`, `templates/http.helper.js`, `templates/error.middleware.js`, `templates/validators.js`. Wire a minimal `server.js` per `references/bootstrap.md`: env import first, `respondMiddleware`, routers, 404 catch-all, `errorMiddleware` last, then `main()` with two-phase startup and graceful shutdown.
+1. **Composition root first**. Copy `templates/env.js` (env loading + fail-fast validation), `templates/api.error.js`, `templates/logger.helper.js`, `templates/http.helper.js`, `templates/error.middleware.js`, `templates/validators.js`, `templates/metrics.helper.js` (request-id context + `/metrics`), `templates/network-security.helper.js` (`getClientIP` + SSRF guard). Wire a minimal `server.js` per `references/bootstrap.md`: env import first, `requestContextMiddleware` then `respondMiddleware`, routers, `/health` + `/metrics`, 404 catch-all, `errorMiddleware` last, then `main()` with two-phase startup and graceful shutdown. See `references/observability.md`.
 2. **Database**. Follow `references/database.md`: `db.js` with static model imports + factory pattern, environment-aware sync (force on `*_test` DBs only — with the destructive-sync guard), and the two-phase idempotent migration runner (baseline behind a flag + post-baseline every boot, non-fatal).
 3. **Auth** (if the service has users): `references/auth-permissions.md`. JWT helper (HS256 pinned, jti + DB-backed revocation), `buildPanelMiddleware(panel, ...extra)` chains, granular permissions engine (`hasGranular` + `VIEW_IMPLIED_BY`), TOTP with lockout counters, presets with snapshot semantics and anti-escalation.
 4. **Public machine API** (if needed): `references/hmac-gateway.md`. HMAC-SHA256 over canonically sorted JSON, timing-safe verify, timestamp skew + Redis SETNX replay protection (fail-closed), sandbox test router mounted before prod.
@@ -42,6 +42,16 @@ After scaffolding, create `_info.md` files for each contour you made.
 
 Identify which contour the change belongs to (or create one). Read the matching reference file before writing code, and reuse the templates' helpers instead of duplicating them. When unsure where a file lives: routers/middleware/services for a domain → that contour in `src/`; process-lifecycle or ORM/queue wiring → backend root.
 
+## Normalizing an existing backend into this shape
+
+When the user asks to "refactor properly", "bring it up to standard", or "make it like the foundation" — i.e. converge a project that already exists onto these conventions — **read `references/normalization.md` first**. It is a staged, behavior-preserving playbook, not a rewrite. The essentials:
+
+1. **Audit before editing.** Produce a gap table (`area | current | target | risk | effort`) and let the user pick scope. Never silently start a multi-file refactor.
+2. **Adopt in low-risk order**: composition root (env/logger/crash handlers) → error+envelope layer → validation → rate-limit + network security → auth → contour reorg → idempotency/ledger/queues → `_info.md`. Each step is an independently shippable, revertable commit.
+3. **Normalize seams, not logic.** Changing how errors/responses/files are *shaped* is in scope; changing what a route *computes* or the JSON a client sees is a contract change — flag it, get sign-off, keep it in a separate diff.
+4. **Helpers before layout.** Add the cross-cutting templates before moving files into contours, or you'll move code twice. Split god-files by moving functions, not rewriting them.
+5. **Money & idempotency retrofits are dangerous** — floats-on-money, missing webhook dedup, read-modify-write races each need before/after invariant snapshots and the verification gate. One subsystem at a time.
+
 ## Reference index — read before implementing the matching subsystem
 
 | File | Covers |
@@ -55,6 +65,8 @@ Identify which contour the change belongs to (or create one). Read the matching 
 | `references/database.md` | Sequelize setup, model conventions, idempotent migrations, encryption-key fingerprint, test infra |
 | `references/ledger.md` | Double-entry accounting core, boxes, entry builders, precision rules |
 | `references/bootstrap.md` | server.js composition, two-phase main(), crons factory, graceful shutdown, env validation |
+| `references/observability.md` | Request-id context, Prometheus `/metrics`, `/health`, SSRF guard, `getClientIP` |
+| `references/normalization.md` | Playbook to refactor an EXISTING backend into this shape — audit, ordering, god-file splits, pitfalls |
 
 ## Template index — copy, then adjust imports/env names
 
@@ -76,6 +88,8 @@ Identify which contour the change belongs to (or create one). Read the matching 
 | `templates/migrations.runner.js` | Two-phase idempotent boot migrations |
 | `templates/env.js` | dotenv cascade + fail-fast config validation |
 | `templates/accounting.core.js` | Ledger kernel: boxes + createTransaction(entries) |
+| `templates/network-security.helper.js` | Proxy-aware `getClientIP` + SSRF guard (`resolveAndAssertPublic`, `safeOutboundUrl`) |
+| `templates/metrics.helper.js` | `requestContextMiddleware` (request id + per-request log), Prometheus `httpMetrics`, `metricsHandler` |
 | `templates/tests.setup.js` | Test-DB guard, cleanTables, unique-tag fixtures |
 
 ## Quick example — a complete new endpoint, the canonical way

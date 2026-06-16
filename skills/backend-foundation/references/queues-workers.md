@@ -103,7 +103,7 @@ export async function stopWorkers()  { for (const w of workers) await w?.close?.
 BullMQ retries alone aren't enough for webhooks; delivery state lives in a DB log row (`CallbackLog: url, payload, status, attempts, max_attempts, next_attempt_at, last_response_*`), and the worker layers on:
 
 1. **Circuit breaker per URL** (in-memory `Map`): ≥10 consecutive failures opens the circuit for 15 min — defers jobs instead of hammering a dead endpoint; success closes it; idle entries GC'd after 24 h.
-2. **SSRF guard**: `resolveAndAssertPublic(url)` (DNS resolve + reject loopback/private/link-local/metadata ranges) before every send.
+2. **SSRF guard**: `resolveAndAssertPublic(url)` from `templates/network-security.helper.js` (DNS resolve + reject loopback/private/link-local/metadata ranges, defeats DNS-rebinding) before every send. Validate tenant-supplied URLs with `safeOutboundUrl()` at write time too — see `observability.md`.
 3. **Response classification**: 2xx → `status='success'`, mark delivered, done. Permanent 4xx (400/401/403/404/410) → `status='failed'`, NO retry, job returns. 5xx/network → schedule `next_attempt_at` per delay table, save, `throw` so BullMQ retries.
 4. **Attempt accounting** on the log row (`attempts`, `last_attempt_at`, response code/body excerpt) — operators see full history and can hit "retry" (→ `reenqueueCallback`).
 

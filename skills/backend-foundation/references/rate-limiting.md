@@ -36,7 +36,7 @@ Sizing intuition: public API by API key (~10 rps); panel by user id, generous (a
 
 Key choices:
 - **Key by tenant identity where it exists** (API key, user id), IP only as fallback / for unauthenticated routes.
-- `getClientIP(req)` is one shared function honoring `trust proxy` config (`TRUSTED_PROXY_HOPS` or CIDR allowlist) — never read `X-Forwarded-For` ad hoc.
+- `getClientIP(req)` is one shared function (from `templates/network-security.helper.js`) honoring `trust proxy` config (`CLIENT_IP_HEADER` / `TRUSTED_PROXY_CIDRS` / `TRUSTED_PROXY_HOPS`) — never read `X-Forwarded-For` ad hoc. `api.limiter.js` imports it from there.
 - The 429 body uses the SAME error envelope as everything else: `{ success:false, error:{ message, code:'TOO_MANY_REQUESTS', errors:[] } }`, plus `Retry-After` seconds.
 - All windows/maxima overridable via env so prod can be tuned without deploys.
 

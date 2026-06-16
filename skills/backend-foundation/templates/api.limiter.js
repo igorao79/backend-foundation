@@ -2,13 +2,9 @@
 // Adjust named limiters / env names per project. getClientIP must be your single proxy-aware IP source.
 import { rateLimit } from 'express-rate-limit';
 import ApiError from './api.error.js';
+import { getClientIP } from './network-security.helper.js';   // single proxy-aware IP source
 
 const intEnv = (name, fallback) => parseInt(process.env[name] || String(fallback), 10);
-
-/** Replace with your proxy-aware implementation (TRUSTED_PROXY_HOPS / CIDR allowlist). */
-export function getClientIP(req) {
-    return req.ip || req.socket?.remoteAddress || null;
-}
 
 // Bypass only TRUE loopback — not requests that arrived through a proxy.
 const skipLocal = (req) => {
